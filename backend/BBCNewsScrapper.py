@@ -3,9 +3,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 import random
 from selenium.webdriver.chrome.options import Options
 import time
+from utils import news_categories, sports_category
 
 
 class BBCNewsScrapper():
@@ -15,9 +17,16 @@ class BBCNewsScrapper():
         options.add_argument("--headless")
         options.add_argument("--disable-gpu")
         self.driver = webdriver.Chrome(options=options)
+        self.timeout = 30
+
 
     def scroll_to_bottom(self):
+        """
+        Scroll to the bottom of page because of lazy loading images. 
+        A timeout of 30 seconds is used to handle infinite loading. 
+        """
         last_height = self.driver.execute_script("return document.body.scrollHeight")
+        start_time = time.time()  # Record the start time
 
         while True:
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
@@ -25,7 +34,13 @@ class BBCNewsScrapper():
 
             new_height = self.driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
-                break
+                break  # Stop scrolling if no more content loads
+
+            # Check if timeout has been reached
+            if time.time() - start_time > self.timeout:
+                print("Timeout reached while scrolling!")
+                break  
+
             last_height = new_height
 
     
@@ -40,19 +55,14 @@ class BBCNewsScrapper():
         Args:
             category (str): The category of news to scrape. Possible values include:
                         "news", "business", "innovation", "culture", "arts", "travel", "future-planet".
-                        If the category is not one of these, the function will exit without scraping.
 
         Returns:
             list: A list of dictionaries containing the extracted data for each news card.
                 Each dictionary contains the keys: "headline", "description", "image_url", "news_link", 
                 "last_updated", and "tag".
         """
-
-        # These are the valid urls
-        valid_category = ["", "news", "business", "innovation", "culture", "arts", "travel", "future-planet"]
-
-        if category not in valid_category:
-            category = ""
+        if category not in news_categories:
+            return
 
         url = f"https://www.bbc.com/{category}"
         self.driver.get(url)
@@ -63,46 +73,29 @@ class BBCNewsScrapper():
         wait = WebDriverWait(self.driver, random.randint(15, 18))
         cards = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-testid="dundee-card"]')))
 
-        # Initialize a list to store extracted data
         card_data = []
 
         # Loop through each card and extract relevant data
         for card in cards:
-            try:
-                headline = card.find_element(By.CSS_SELECTOR, '[data-testid="card-headline"]').text
-                description = card.find_element(By.CSS_SELECTOR, '[data-testid="card-description"]').text
-                image_url = card.find_element(By.CSS_SELECTOR, '[data-testid="card-image-wrapper"] img').get_attribute('src')
-            except:
+            # If headline is not present then its not a news
+            headline = self.get_element_text(card, './/h2[@data-testid="card-headline"]')
+            print(category, headline)
+            if not headline:
                 continue
-
-
-            try:
-                news_link = card.find_element(By.XPATH, './/a[@data-testid="internal-link"]').get_attribute('href')
-            except Exception as e:
-                news_link = None
+            description = self.get_element_text(card, './/p[@data-testid="card-description"]')  # Use correct XPath for description
+            image_url = self.get_element_attribute(card, './/div[@data-testid="card-image-wrapper"]//img', 'src')
+            news_link = self.get_element_attribute(card, './/a[@data-testid="internal-link"]', 'href')
+            last_updated = self.get_element_text(card, './/span[@data-testid="card-metadata-lastupdated"]')
+            tag = self.get_element_text(card, './/span[@data-testid="card-metadata-tag"]')
             
-            # Use XPath to locate the last updated time
-            try:
-                last_updated = card.find_element(By.XPATH, './/span[@data-testid="card-metadata-lastupdated"]').text
-            except Exception as e:
-                last_updated = None
-            
-            # Use XPath to locate the tag
-            try:
-                tag = card.find_element(By.XPATH, './/span[@data-testid="card-metadata-tag"]').text
-            except Exception as e:
-                tag = None
-            
-            # Append the extracted data to the list
-            if headline and description:
-                card_data.append({
-                    "headline": headline,
-                    "description": description,
-                    "image_url": image_url,
-                    "news_link": news_link,
-                    "last_updated": last_updated,
-                    "tag": tag
-                })
+            card_data.append({
+                "headline": headline,
+                "description": description,
+                "image_url": image_url,
+                "news_link": news_link,
+                "last_updated": last_updated,
+                "tag": tag
+            })
 
         return card_data
 
@@ -127,10 +120,8 @@ class BBCNewsScrapper():
             - "tag" (str, optional): The tag of the news associated with the article (if available).
             - "last_updated" (str): date on which the news was posted
         """
-
-        valid_category = ["", "football", "cricket", "formula1", "rugby-union", "tennis", "golf", "athletics", "cycling"]
-        if category not in valid_category:
-            category = ""
+        if category not in sports_category:
+            return
 
         url = f"https://www.bbc.com/sport/{category}"  
         self.driver.get(url)
@@ -143,42 +134,40 @@ class BBCNewsScrapper():
         sports_data = []
 
         for card in sports_cards:
-            try:
-                headline = card.find_element(By.XPATH, ".//*[contains(@class, 'PromoHeadline')]").text
-            except Exception as e:
-                headline = None
+            # If we dont get the headline, then its not a news 
+            headline = self.get_element_text(card, ".//*[contains(@class, 'PromoHeadline')]")
+            if not headline:
+                continue
 
-            try:
-                news_link = card.find_element(By.XPATH, ".//*[contains(@class, 'PromoLink')]").get_attribute('href')
-            except Exception as e:
-                news_link = None
-
-            try:
-                image_url = card.find_element(By.XPATH, ".//*[contains(@class, 'ImageWrapper')]//img").get_attribute('src')
-            except Exception as e:
-                image_url = None
-
-            try:
-                tag = card.find_element(By.XPATH, ".//ul[contains(@class, 'MetadataStripContainer')]//li[1]//a//span").text
-            except Exception as e:
-                tag = None
-
-            try:
-                last_updated = card.find_element(By.XPATH, ".//ul[contains(@class, 'MetadataStripContainer')]//div[contains(@class, 'GroupChildrenForWrapping')]//li//span[@aria-hidden='true']").text
-            except Exception as e:
-                last_updated = None
+            news_link = self.get_element_attribute(card, ".//*[contains(@class, 'PromoLink')]", 'href')
+            image_url = self.get_element_attribute(card, ".//*[contains(@class, 'ImageWrapper')]//img", 'src')
+            tag = self.get_element_text(card, ".//ul[contains(@class, 'MetadataStripContainer')]//li[1]//a//span")
+            last_updated = self.get_element_text(card, ".//ul[contains(@class, 'MetadataStripContainer')]//div[contains(@class, 'GroupChildrenForWrapping')]//li//span[@aria-hidden='true']")
             
-
-            if headline and news_link:
-                sports_data.append({
-                    "headline": headline,
-                    "news_link": news_link,
-                    "image_url": image_url,
-                    "tag": tag,
-                    "last_updated": last_updated
-                })
+            sports_data.append({
+                "headline": headline,
+                "news_link": news_link,
+                "image_url": image_url,
+                "tag": tag,
+                "last_updated": last_updated
+            })
 
         return sports_data
+    
+    def get_element_text(self, element, xpath):
+        """Helper method to get text from an element safely."""
+        try:
+            return element.find_element(By.XPATH, xpath).text
+        except NoSuchElementException:
+            return None
+
+    def get_element_attribute(self, element, xpath, attribute):
+        """Helper method to get an attribute value from an element safely."""
+        try:
+            return element.find_element(By.XPATH, xpath).get_attribute(attribute)
+        except NoSuchElementException:
+            return None
+
     
 
     def close_driver(self):
