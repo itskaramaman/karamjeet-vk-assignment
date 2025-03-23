@@ -1,0 +1,1 @@
+export const newsCategories = ["", "news", "business", "innovation", "culture", "arts", "travel", "future-planet"]

@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium import webdriver
 import random
 from selenium.webdriver.chrome.options import Options
+import time
 
 
 class BBCNewsScrapper():
@@ -15,19 +16,31 @@ class BBCNewsScrapper():
         options.add_argument("--disable-gpu")
         self.driver = webdriver.Chrome(options=options)
 
+    def scroll_to_bottom(self):
+        last_height = self.driver.execute_script("return document.body.scrollHeight")
+
+        while True:
+            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(random.randint(2, 5)) 
+
+            new_height = self.driver.execute_script("return document.body.scrollHeight")
+            if new_height == last_height:
+                break
+            last_height = new_height
+
     
-    def get_news(self, filter=""):
+    def get_news(self, category=""):
         """
-        Scrapes news data from the BBC website based on the provided filter.
+        Scrapes news data from the BBC website based on the provided category.
 
         This function will navigate to the appropriate section of the BBC website (home, news, business, etc.)
         and extract the headline, description, image URL, news link, last updated time, and tag for each news card
         on the page. The extracted data is returned as a list of dictionaries.
 
         Args:
-            filter (str): The category of news to scrape. Possible values include:
+            category (str): The category of news to scrape. Possible values include:
                         "news", "business", "innovation", "culture", "arts", "travel", "future-planet".
-                        If the filter is not one of these, the function will exit without scraping.
+                        If the category is not one of these, the function will exit without scraping.
 
         Returns:
             list: A list of dictionaries containing the extracted data for each news card.
@@ -35,15 +48,18 @@ class BBCNewsScrapper():
         """
 
         # These are the valid urls
-        valid_filters = ["", "news", "business", "innovation", "culture", "arts", "travel", "future-planet"]
+        valid_category = ["", "news", "business", "innovation", "culture", "arts", "travel", "future-planet"]
 
-        if filter not in valid_filters:
-            filter = ""
+        if category not in valid_category:
+            category = ""
 
-        url = f"https://www.bbc.com/{filter}"
+        url = f"https://www.bbc.com/{category}"
         self.driver.get(url)
 
-        wait = WebDriverWait(self.driver, random.randint(10, 12))
+        # scroll to the bottom of page
+        self.scroll_to_bottom()
+
+        wait = WebDriverWait(self.driver, random.randint(15, 18))
         cards = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '[data-testid="dundee-card"]')))
 
         # Initialize a list to store extracted data
@@ -86,15 +102,15 @@ class BBCNewsScrapper():
         return card_data
 
 
-    def get_sports_news(self, filter=""):
+    def get_sports_news(self, category=""):
         """
-        Scrapes sports news from BBC Sport based on the given filter.
+        Scrapes sports news from BBC Sport based on the given category.
 
-        This method navigates to the BBC Sport page corresponding to the provided filter (e.g., football, cricket) 
+        This method navigates to the BBC Sport page corresponding to the provided category (e.g., football, cricket) 
         and extracts headlines, news links, and image URLs from promotional elements on the page.
 
         Args:
-        filter (str): The category of sports news to fetch. Available options are:
+        category (str): The category of sports news to fetch. Available options are:
                     "", "football", "cricket", "formula1", "rugby-union", "tennis", 
                     "golf", "athletics", "cycling". Defaults to an empty string, which fetches the general sports page.
 
@@ -105,11 +121,11 @@ class BBCNewsScrapper():
             - "image_url" (str, optional): The URL of the image associated with the article (if available).
         """
 
-        valid_filters = ["", "football", "cricket", "formula1", "rugby-union", "tennis", "golf", "athletics", "cycling"]
-        if filter not in valid_filters:
-            filter = ""
+        valid_category = ["", "football", "cricket", "formula1", "rugby-union", "tennis", "golf", "athletics", "cycling"]
+        if category not in valid_category:
+            category = ""
 
-        url = f"https://www.bbc.com/sport/{filter}"  
+        url = f"https://www.bbc.com/sport/{category}"  
         self.driver.get(url)
 
         wait = WebDriverWait(self.driver, random.randint(9, 12))
