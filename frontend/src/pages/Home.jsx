@@ -1,14 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { newsCategories } from "../../utils";
+import NewsCard from "../components/NewsCard";
 
 const Home = () => {
   const [newsData, setNewsData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState("");
 
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/delete/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setNewsData(newsData.filter((news) => news.id != id));
+      } else {
+        console.error("Failed to delete news");
+      }
+    } catch (error) {
+      console.error("Error deleting news:", error);
+    }
+  };
+
   useEffect(() => {
-    // Function to fetch data from the backend
-    const fetchData = async () => {
+    const fetchNews = async () => {
       setLoading(true);
       try {
         const url =
@@ -17,7 +33,6 @@ const Home = () => {
             : `http://127.0.0.1:5000/data/${category}`;
         const response = await fetch(url);
         const data = await response.json();
-        console.log(data);
         setNewsData(data);
       } catch (error) {
         console.error("Error fetching news data:", error);
@@ -25,15 +40,16 @@ const Home = () => {
       setLoading(false);
     };
 
-    fetchData();
+    fetchNews();
   }, [category]);
 
   return (
-    <div className="max-w-screen-lg mx-auto p-4">
-      <h1 className="text-3xl font-bold text-center mb-6">BBC News Scraper</h1>
+    <div className="container mx-auto p-4">
+      <h1 className="text-4xl">BBC News</h1>
       <select
         id="category"
         value={category}
+        className="border-2 border-gray-200 rounded-md mt-4"
         onChange={(e) => setCategory(e.target.value)}
       >
         {newsCategories.map((category, index) => (
@@ -46,37 +62,8 @@ const Home = () => {
       {loading && <div className="mt-4 text-center text-xl">Loading...</div>}
 
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-        {newsData.map((item, index) => (
-          <div
-            key={index}
-            className="bg-white shadow-lg rounded-lg p-4 hover:shadow-xl transition"
-          >
-            {item.image_url && (
-              <img
-                src={item.image_url}
-                alt={item.headline}
-                className="w-full h-48 object-cover rounded-md mb-4"
-              />
-            )}
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              {item.headline}
-            </h3>
-            <p className="text-gray-600 text-sm mb-4">{item.description}</p>
-            {item.news_link && (
-              <a
-                href={item.news_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:text-blue-700 text-sm"
-              >
-                Read more
-              </a>
-            )}
-            <div className="text-xs text-gray-500 mt-2">
-              <p>{item.last_updated}</p>
-              {item.tag && <p className="italic">{item.tag}</p>}
-            </div>
-          </div>
+        {newsData.map((news, index) => (
+          <NewsCard news={news} index={index} handleDelete={handleDelete} />
         ))}
       </div>
     </div>

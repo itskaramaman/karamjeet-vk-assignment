@@ -24,6 +24,9 @@ class SportsNews(db.Model):
     headline = db.Column(db.String(255))
     news_link = db.Column(db.String(255))
     image_url = db.Column(db.String(255))
+    category = db.Column(db.String(100))
+    tag = db.Column(db.String(100), nullable=True)
+    last_updated = db.Column(db.String(100), nullable=True)
 
     def __repr__(self):
         return f'<SportsNews {self.headline}>'

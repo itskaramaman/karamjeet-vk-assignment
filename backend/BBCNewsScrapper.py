@@ -21,7 +21,7 @@ class BBCNewsScrapper():
 
         while True:
             self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(random.randint(2, 5)) 
+            time.sleep(random.randint(1, 3)) 
 
             new_height = self.driver.execute_script("return document.body.scrollHeight")
             if new_height == last_height:
@@ -44,7 +44,8 @@ class BBCNewsScrapper():
 
         Returns:
             list: A list of dictionaries containing the extracted data for each news card.
-                Each dictionary contains the keys: "headline", "description", "image_url", "news_link", "last_updated", and "tag".
+                Each dictionary contains the keys: "headline", "description", "image_url", "news_link", 
+                "last_updated", and "tag".
         """
 
         # These are the valid urls
@@ -67,9 +68,13 @@ class BBCNewsScrapper():
 
         # Loop through each card and extract relevant data
         for card in cards:
-            headline = card.find_element(By.CSS_SELECTOR, '[data-testid="card-headline"]').text
-            description = card.find_element(By.CSS_SELECTOR, '[data-testid="card-description"]').text
-            image_url = card.find_element(By.CSS_SELECTOR, '[data-testid="card-image-wrapper"] img').get_attribute('src')
+            try:
+                headline = card.find_element(By.CSS_SELECTOR, '[data-testid="card-headline"]').text
+                description = card.find_element(By.CSS_SELECTOR, '[data-testid="card-description"]').text
+                image_url = card.find_element(By.CSS_SELECTOR, '[data-testid="card-image-wrapper"] img').get_attribute('src')
+            except:
+                continue
+
 
             try:
                 news_link = card.find_element(By.XPATH, './/a[@data-testid="internal-link"]').get_attribute('href')
@@ -115,10 +120,12 @@ class BBCNewsScrapper():
                     "golf", "athletics", "cycling". Defaults to an empty string, which fetches the general sports page.
 
         Returns:
-        list: A list of dictionaries containing extracted data for each promo element on the page. Each dictionary contains:
+        list: A list of dictionaries containing extracted data for each sports card on the page. Each dictionary contains:
             - "headline" (str): The headline of the sports news article.
             - "news_link" (str): The URL of the news article.
             - "image_url" (str, optional): The URL of the image associated with the article (if available).
+            - "tag" (str, optional): The tag of the news associated with the article (if available).
+            - "last_updated" (str): date on which the news was posted
         """
 
         valid_category = ["", "football", "cricket", "formula1", "rugby-union", "tennis", "golf", "athletics", "cycling"]
@@ -130,36 +137,48 @@ class BBCNewsScrapper():
 
         wait = WebDriverWait(self.driver, random.randint(9, 12))
         # Wait until promo elements are present
-        promos = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.ssrcss-1va2pun-UncontainedPromoWrapper')))
+        sports_cards = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, '.ssrcss-1va2pun-UncontainedPromoWrapper')))
 
         # Initialize a list to store the extracted data
-        promo_data = []
+        sports_data = []
 
-        for promo in promos:
+        for card in sports_cards:
             try:
-                headline = promo.find_element(By.XPATH, ".//*[contains(@class, 'PromoHeadline')]").text
+                headline = card.find_element(By.XPATH, ".//*[contains(@class, 'PromoHeadline')]").text
             except Exception as e:
                 headline = None
 
             try:
-                news_link = promo.find_element(By.XPATH, ".//*[contains(@class, 'PromoLink')]").get_attribute('href')
+                news_link = card.find_element(By.XPATH, ".//*[contains(@class, 'PromoLink')]").get_attribute('href')
             except Exception as e:
                 news_link = None
 
             try:
-                image_url = promo.find_element(By.XPATH, ".//*[contains(@class, 'ImageWrapper')]//img").get_attribute('src')
+                image_url = card.find_element(By.XPATH, ".//*[contains(@class, 'ImageWrapper')]//img").get_attribute('src')
             except Exception as e:
                 image_url = None
+
+            try:
+                tag = card.find_element(By.XPATH, ".//ul[contains(@class, 'MetadataStripContainer')]//li[1]//a//span").text
+            except Exception as e:
+                tag = None
+
+            try:
+                last_updated = card.find_element(By.XPATH, ".//ul[contains(@class, 'MetadataStripContainer')]//div[contains(@class, 'GroupChildrenForWrapping')]//li//span[@aria-hidden='true']").text
+            except Exception as e:
+                last_updated = None
             
 
             if headline and news_link:
-                promo_data.append({
+                sports_data.append({
                     "headline": headline,
                     "news_link": news_link,
-                    "image_url": image_url
+                    "image_url": image_url,
+                    "tag": tag,
+                    "last_updated": last_updated
                 })
 
-        return promo_data
+        return sports_data
     
 
     def close_driver(self):
