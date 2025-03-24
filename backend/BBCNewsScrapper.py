@@ -39,7 +39,7 @@ class BBCNewsScrapper():
             # Check if timeout has been reached
             if time.time() - start_time > self.timeout:
                 print("Timeout reached while scrolling!")
-                break  
+                break
 
             last_height = new_height
 
@@ -83,7 +83,7 @@ class BBCNewsScrapper():
             if not headline:
                 continue
             description = self.get_element_text(card, './/p[@data-testid="card-description"]')  # Use correct XPath for description
-            image_url = self.get_element_attribute(card, './/div[@data-testid="card-image-wrapper"]//img', 'src')
+            image_url = self.get_element_attribute(card, './/div[@data-testid="card-media"]//img', 'src')
             news_link = self.get_element_attribute(card, './/a[@data-testid="internal-link"]', 'href')
             last_updated = self.get_element_text(card, './/span[@data-testid="card-metadata-lastupdated"]')
             tag = self.get_element_text(card, './/span[@data-testid="card-metadata-tag"]')
